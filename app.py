@@ -9,16 +9,15 @@ from src.pydentic_models import *
 from src.models import *
 from sqlalchemy.orm import Session
 from db_manager import get_elasticsearch_connection, get_postgresql_connection
-app = FastAPI()
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import traceback
 from sqlalchemy import exc as sqlexc
-from passlib.context import CryptContext
+from helpers import *
 
-
+app = FastAPI()
 load_dotenv("config.env")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 # Get the connection details from environment variables 
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "localhost")
@@ -31,12 +30,7 @@ POSTGRES_DB = os.getenv("POSTGRES_DB")
 POSTGRES_CONN_DICT = {"host":POSTGRES_HOST, "port":POSTGRES_PORT, "user":POSTGRES_USER, "password":POSTGRES_PASSWORD, "db_name":POSTGRES_DB}
 POSTGRES_DB_URI = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-def file_extension_is_allowed(filename: str) -> bool:
-    ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt']
-    return filename.split('.')[-1] in ALLOWED_EXTENSIONS
 
-def get_file_extension(filename: str) -> str:
-    return filename.split('.')[-1]
 
 @app.exception_handler(RequestValidationError) # occurs before api gets hit
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -75,8 +69,7 @@ async def upload_file(file: UploadFile = File(...)):
     
     
 
-def get_password_hash(password: str):
-    return pwd_context.hash(password)
+
 
 @app.post("/signup")
 async def signup(user_create:UserCreate, db: Session = Depends(lambda: next(get_postgresql_connection(**POSTGRES_CONN_DICT)))):
