@@ -2,6 +2,7 @@
 # import string
 from passlib.context import CryptContext
 from sqlalchemy_utils import database_exists, create_database
+
 # from sqlalchemy import create_engine
 # from sqlalchemy.orm import sessionmaker
 # from sqlalchemy.ext.declarative import declarative_base
@@ -15,6 +16,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str):
     return pwd_context.hash(password)
 
+async def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
 
 def file_extension_is_allowed(filename: str) -> bool:
     ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt']
@@ -22,6 +27,7 @@ def file_extension_is_allowed(filename: str) -> bool:
 
 def get_file_extension(filename: str) -> str:
     return filename.split('.')[-1]
+
 
 
 
