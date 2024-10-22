@@ -5,4 +5,3 @@ config.env
 async_await.py
 __pycache__/
 Python-3.13.0/
-text_processor.py
