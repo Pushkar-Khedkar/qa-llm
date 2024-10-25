@@ -17,7 +17,9 @@ from fastapi.security import OAuth2PasswordBearer
 import traceback
 from sqlalchemy import exc as sqlexc
 from helpers import *
-
+from redis import Redis
+from rq import Queue
+import time
 app = FastAPI()
 load_dotenv("config.env")
 # Secret key to encode and decode the JWT
@@ -26,7 +28,7 @@ load_dotenv("config.env")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 SECRET_KEY = JWT_SECRET_KEY
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1
+ACCESS_TOKEN_EXPIRE_MINUTES = 360
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -66,6 +68,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 # 2. user saved categories in table
 # 3. user uploaded text in elasticsearch
 # 4. conversation history in cassendra.
+
+# setting up redis
+REDIS_CONNECTION_URL = os.getenv("REDIS_CONNECTION_URL")
+redis_conn = Redis.from_url(REDIS_CONNECTION_URL)
+
+async def enqueue_processor_job(text, ):
+    queue_name = "doc_processor_queue"
+    q = Queue(queue_name, connection=redis_conn)
+    args = {"text":text, "split_strategy":"paragraphs"}
+    job = q.enqueue(process_text, args)
+    return job.id
+
+
 
 
 
@@ -116,6 +131,9 @@ async def upload_file(file: UploadFile = File(...), current_user: str = Depends(
         extracted_text = extract_text_from_pdf(file_bytes)
     elif file_extension == "docx":
         extracted_text = extract_text_from_docx(file_bytes)
+    
+    job_id = await enqueue_processor_job(text=extracted_text)
+    print("JOB ID : ", job_id)
     
     
 

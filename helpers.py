@@ -2,6 +2,7 @@
 # import string
 from passlib.context import CryptContext
 from sqlalchemy_utils import database_exists, create_database
+from sentence_transformers import SentenceTransformer
 
 # from sqlalchemy import create_engine
 # from sqlalchemy.orm import sessionmaker
@@ -28,7 +29,41 @@ def file_extension_is_allowed(filename: str) -> bool:
 def get_file_extension(filename: str) -> str:
     return filename.split('.')[-1]
 
+def generate_vectors(text):
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    model.max_seq_length = 512
+    embeddings = model.encode([text])
 
+def clean_text(text):
+    cleaned_text = ''.join(text.split('\n'))
+    cleaned_text = cleaned_text.strip()
+    return cleaned_text
+
+def splitting(text, split_strategy='paragraphs'):
+    if split_strategy == "sentences":
+        splitted_text = text.split(". ")
+    elif split_strategy == "paragraphs":
+        splitted_text = text.split("\n")
+    splitted_text = [clean_text(i) for i in splitted_text]
+    return splitted_text
+
+def construct_documents(splitted_text):
+    """we need to fit max number of words in a elastic-search document. 
+    since as per sbert docs:
+    'A common value for BERT-based models are 512 tokens, which corresponds to about 300-400 words (for English)'.
+    we would try to group together the splitted text so that one document can range between 300-400.
+    """
+
+    
+
+def process_text(args):
+    text = args["text"]
+    split_strategy = args["split_strategy"]
+    splitted_text = splitting(text=text, split_strategy=split_strategy)
+    documents = construct_documents(splitted_text=splitted_text)
+
+
+    
 
 
 
