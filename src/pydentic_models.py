@@ -29,3 +29,5 @@ class ErrorHandler(BaseModel):
     message: str = 'Operation failed'
     errors: Optional[List[dict]] = None
 
+class UserQuery(BaseModel):
+    query:str

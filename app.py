@@ -1,4 +1,3 @@
-from elasticsearch import Elasticsearch
 from datetime import datetime, timedelta
 import jwt
 import mlflow
@@ -73,20 +72,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 REDIS_CONNECTION_URL = os.getenv("REDIS_CONNECTION_URL")
 redis_conn = Redis.from_url(REDIS_CONNECTION_URL)
 
-async def enqueue_processor_job(text, ):
-    queue_name = "doc_processor_queue"
+async def enqueue_processor_job(text):
+    queue_name = "doc_processor"
     q = Queue(queue_name, connection=redis_conn)
     args = {"text":text, "split_strategy":"paragraphs"}
-    job = q.enqueue(process_text, args)
+    job = q.enqueue(process_text, args, job_timeout=3600)
     return job.id
 
 
 
 
 
-# Get the connection details from environment variables 
-ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "localhost")
-ELASTICSEARCH_PORT = os.getenv("ELASTICSEARCH_PORT", "9200")
+
+
+
+# SETTING UP POSTGRES
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
@@ -133,7 +133,7 @@ async def upload_file(file: UploadFile = File(...), current_user: str = Depends(
         extracted_text = extract_text_from_docx(file_bytes)
     
     job_id = await enqueue_processor_job(text=extracted_text)
-    print("JOB ID : ", job_id)
+    return SuccessHandler()
     
     
 
@@ -178,6 +178,32 @@ async def login(user_login:UserCreds, db:Session = Depends(lambda: next(get_post
 
     # Return the JWT token
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+    # Elasticsearch query for semantic search
+@app.post("/query_api")
+async def query_api(query:UserQuery, current_user: str = Depends(get_current_user), db : Session = Depends(lambda : get_postgresql_connection)):
+    query_embedding = generate_vectors(query.query)[0].tolist()
+    top_k = 5
+    response = elastic_client.knn_search(
+        index=ELASTICSEARCH_INDEX,
+        body={
+            "knn": {
+                "field": "vector",     # Field name for vector search
+                "query_vector": query_embedding,
+                "k": top_k,
+                "num_candidates": top_k * 2  # Adjust as needed
+            },
+            "_source": ["text"]  # Retrieve only the "text" field
+        }
+    )
+    
+    # Parse and return results
+    results = [{"text": hit["_source"]["text"], "score": hit["_score"]} for hit in response["hits"]["hits"] if hit["_score"] > 0.6 ]
+    return SuccessHandler(data={"data":results})
+
+
     
     
     
